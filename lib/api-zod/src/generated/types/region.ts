@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetPriceComparisonParams = {
-  location?: string;
-  neighborhoods?: string;
-};
+export interface Region {
+  id: string;
+  name: string;
+  neighborhoods: string[];
+}

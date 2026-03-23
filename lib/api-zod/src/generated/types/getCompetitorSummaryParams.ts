@@ -6,10 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetCompetitorOffersParams = {
-  competitor?: string;
+export type GetCompetitorSummaryParams = {
   location?: string;
   neighborhoods?: string;
-  dateFrom?: Date;
-  dateTo?: Date;
 };

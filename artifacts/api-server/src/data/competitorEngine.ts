@@ -1,6 +1,12 @@
-import { addDays, format, subDays } from "date-fns";
+import { format, subDays } from "date-fns";
 
 export type LocalRelevance = "ALTA" | "MEDIA" | "BAJA";
+
+export interface Region {
+  id: string;
+  name: string;
+  neighborhoods: string[];
+}
 
 export interface CompetitorOffer {
   id: string;
@@ -16,6 +22,7 @@ export interface CompetitorOffer {
   offerType: string;
   sourceUrl: string;
   localRelevance: LocalRelevance;
+  isNew: boolean;
 }
 
 export interface PriceComparison {
@@ -25,6 +32,13 @@ export interface PriceComparison {
   offerCount: number;
   minPrice: number;
   maxPrice: number;
+}
+
+export interface MarketShare {
+  competitor: string;
+  offerCount: number;
+  percentage: number;
+  color: string;
 }
 
 export interface SwotAnalysis {
@@ -52,9 +66,50 @@ export interface DashboardSummary {
   avgMarketPrice: number;
   lastRefresh: string;
   alertsCount: number;
+  newOffersCount: number;
+  selectedRegionName: string;
+}
+
+export const REGIONS: Region[] = [
+  {
+    id: "sur",
+    name: "Sur de Quito",
+    neighborhoods: ["Quitumbe", "Chillogallo", "Solanda", "La Ecuatoriana", "Guajaló", "La Ajaví", "La Mena", "Turubamba"],
+  },
+  {
+    id: "centro",
+    name: "Centro de Quito",
+    neighborhoods: ["La Mariscal", "Centro Histórico", "La Floresta", "Chimbacalle", "El Panecillo"],
+  },
+  {
+    id: "norte",
+    name: "Norte de Quito",
+    neighborhoods: ["González Suárez", "El Batán", "Quito Norte", "Carcelén", "Cotocollao", "Ponceano"],
+  },
+  {
+    id: "valles",
+    name: "Valles",
+    neighborhoods: ["Cumbayá", "Tumbaco", "Los Chillos", "Sangolquí", "Conocoto"],
+  },
+];
+
+const ALL_NEIGHBORHOODS = REGIONS.flatMap((r) => r.neighborhoods);
+
+const REGION_BY_NEIGHBORHOOD: Record<string, string> = {};
+for (const region of REGIONS) {
+  for (const nb of region.neighborhoods) {
+    REGION_BY_NEIGHBORHOOD[nb] = region.name;
+  }
 }
 
 const COMPETITORS = ["Netlife", "PuntoNet", "Celerity", "CNT"];
+
+const COMPETITOR_COLORS: Record<string, string> = {
+  Netlife: "hsl(11, 100%, 58%)",
+  PuntoNet: "hsl(220, 90%, 56%)",
+  Celerity: "hsl(36, 90%, 56%)",
+  CNT: "hsl(143, 90%, 56%)",
+};
 
 const PLANS = [
   { name: "Plan 100 Mbps", speed: 100 },
@@ -63,11 +118,6 @@ const PLANS = [
   { name: "Plan 500 Mbps", speed: 500 },
   { name: "Plan 1 Gbps", speed: 1000 },
 ];
-
-const SUR_ZONES = ["Chillogallo", "Quitumbe", "Solanda", "La Ecuatoriana", "Guajaló"];
-const NORTH_ZONES = ["La Mariscal", "González Suárez", "El Batán"];
-const VALLEY_ZONES = ["Cumbayá", "Tumbaco", "Los Chillos"];
-const GLOBAL_ZONES = ["Quito Global", "Ecuador Nacional"];
 
 const OFFER_TYPES = [
   "Instalación Gratis",
@@ -85,6 +135,8 @@ const AD_CAPTIONS: Record<string, string[]> = {
     "Netlife llega a Quitumbe: Internet de alta velocidad para toda tu familia.",
     "¡Nuevo plan disponible en Solanda! Instalación gratis por tiempo limitado.",
     "Descuento del 30% el primer año en Netlife. ¡Aplica en todo Ecuador!",
+    "Netlife en La Mariscal: la fibra más rápida del Norte. ¡Contrata ya!",
+    "Cobertura total Netlife en Cumbayá y Tumbaco. Internet real sin cortes.",
   ],
   PuntoNet: [
     "PuntoNet en el Sur: Planes desde $19.99/mes. ¡Contrata hoy!",
@@ -92,6 +144,8 @@ const AD_CAPTIONS: Record<string, string[]> = {
     "¿Buscas internet rápido en Quito? PuntoNet tiene la mejor oferta.",
     "Expansión PuntoNet en Quitumbe. Wi-Fi gratis incluido.",
     "Oferta especial: Internet PuntoNet con descuento mensual por 6 meses.",
+    "PuntoNet llega a Solanda con su mejor plan por solo $22.99/mes.",
+    "Internet PuntoNet en Los Chillos — fibra simétrica sin cláusulas.",
   ],
   Celerity: [
     "Celerity Internet: La velocidad que necesitas en el Sur de Quito.",
@@ -99,6 +153,8 @@ const AD_CAPTIONS: Record<string, string[]> = {
     "Navega rápido con Celerity. Ofertas disponibles en todo Quito.",
     "Nuevo en Guajaló: Internet Celerity sin cláusulas de permanencia.",
     "Celerity vs la competencia: Más velocidad, menor precio. ¡Pruébanos!",
+    "Celerity estrena cobertura en La Ajaví. Fibra óptica desde $21.99.",
+    "Plan Celerity 500 Mbps ahora disponible en González Suárez.",
   ],
   CNT: [
     "CNT EP: El internet del Estado al servicio del Sur de Quito.",
@@ -106,6 +162,8 @@ const AD_CAPTIONS: Record<string, string[]> = {
     "Plan especial CNT para hogares en Solanda. ¡Llama hoy!",
     "CNT amplía cobertura en La Ecuatoriana. Internet desde $15.99/mes.",
     "Bundle CNT: Internet + TV por cable a precio especial en Quito Sur.",
+    "CNT fibra óptica llega a La Ajaví y Turubamba. ¡El precio más bajo!",
+    "CNT en Sangolquí: cobertura nueva con plan familiar desde $17.99/mes.",
   ],
 };
 
@@ -117,7 +175,7 @@ const PRICE_RANGES: Record<string, Record<number, [number, number]>> = {
 };
 
 function seededRandom(seed: number): number {
-  const x = Math.sin(seed) * 10000;
+  const x = Math.sin(seed + 1) * 10000;
   return x - Math.floor(x);
 }
 
@@ -129,26 +187,28 @@ function randomInRange(min: number, max: number, seed: number): number {
   return Math.round((min + seededRandom(seed) * (max - min)) * 100) / 100;
 }
 
-function classifyRelevance(caption: string, location: string): { specificLocation: string; localRelevance: LocalRelevance } {
-  const surKeywords = ["Sur de Quito", "Quitumbe", "Chillogallo", "Solanda", "La Ecuatoriana", "Guajaló"];
-  const captionAndLocation = `${caption} ${location}`.toLowerCase();
+function classifyRelevance(
+  caption: string,
+  neighborhood: string
+): { specificLocation: string; localRelevance: LocalRelevance } {
+  const surKeywords = ["Sur de Quito", "Quitumbe", "Chillogallo", "Solanda", "La Ecuatoriana", "Guajaló", "La Ajaví", "La Mena", "Turubamba"];
+  const captionAndNb = `${caption} ${neighborhood}`;
 
   for (const kw of surKeywords) {
-    if (captionAndLocation.includes(kw.toLowerCase())) {
-      return { specificLocation: kw, localRelevance: "ALTA" };
+    if (captionAndNb.toLowerCase().includes(kw.toLowerCase())) {
+      return { specificLocation: neighborhood, localRelevance: "ALTA" };
     }
   }
-
-  if (captionAndLocation.includes("quito")) {
-    return { specificLocation: location, localRelevance: "MEDIA" };
+  if (captionAndNb.toLowerCase().includes("quito") || captionAndNb.toLowerCase().includes("sur")) {
+    return { specificLocation: neighborhood, localRelevance: "MEDIA" };
   }
-
-  return { specificLocation: location, localRelevance: "BAJA" };
+  return { specificLocation: neighborhood, localRelevance: "BAJA" };
 }
 
 function generateOffers(daysBack = 30): CompetitorOffer[] {
   const offers: CompetitorOffer[] = [];
   const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
 
   let seed = 42;
 
@@ -156,7 +216,7 @@ function generateOffers(daysBack = 30): CompetitorOffer[] {
     const date = subDays(today, d);
     const dateStr = format(date, "yyyy-MM-dd");
     const dayOfWeek = date.getDay();
-    const offersPerDay = dayOfWeek === 0 || dayOfWeek === 6 ? 8 : 5;
+    const offersPerDay = dayOfWeek === 0 || dayOfWeek === 6 ? 10 : 6;
 
     for (let i = 0; i < offersPerDay; i++) {
       seed++;
@@ -164,26 +224,9 @@ function generateOffers(daysBack = 30): CompetitorOffer[] {
       seed++;
       const plan = pickFromArray(PLANS, seed);
       seed++;
+      const neighborhood = pickFromArray(ALL_NEIGHBORHOODS, seed);
+      const regionName = REGION_BY_NEIGHBORHOOD[neighborhood] ?? "Todo Quito";
 
-      const zoneChoice = seededRandom(seed);
-      let zones: string[];
-      let inferredLocation: string;
-      if (zoneChoice < 0.45) {
-        zones = SUR_ZONES;
-        inferredLocation = "Sur de Quito";
-      } else if (zoneChoice < 0.65) {
-        zones = VALLEY_ZONES;
-        inferredLocation = "Valles";
-      } else if (zoneChoice < 0.80) {
-        zones = NORTH_ZONES;
-        inferredLocation = "Norte de Quito";
-      } else {
-        zones = GLOBAL_ZONES;
-        inferredLocation = "Todo Quito";
-      }
-
-      seed++;
-      const neighborhood = pickFromArray(zones, seed);
       seed++;
       const caption = pickFromArray(AD_CAPTIONS[competitor], seed);
       seed++;
@@ -194,7 +237,7 @@ function generateOffers(daysBack = 30): CompetitorOffer[] {
       const price = randomInRange(priceRange[0], priceRange[1], seed);
 
       const { specificLocation, localRelevance } = classifyRelevance(caption, neighborhood);
-
+      const isNew = dateStr === todayStr;
       const offerId = `${competitor.toLowerCase()}-${dateStr}-${i}`;
 
       offers.push({
@@ -206,11 +249,12 @@ function generateOffers(daysBack = 30): CompetitorOffer[] {
         plan: plan.name,
         price,
         speedMbps: plan.speed,
-        inferredLocation,
+        inferredLocation: regionName,
         specificLocation,
         offerType,
         sourceUrl: `https://www.instagram.com/p/${offerId.replace(/[^a-z0-9]/g, "")}`,
         localRelevance,
+        isNew,
       });
     }
   }
@@ -218,62 +262,14 @@ function generateOffers(daysBack = 30): CompetitorOffer[] {
   return offers.sort((a, b) => b.detectedDate.localeCompare(a.detectedDate));
 }
 
-const SWOT_DATA: Record<string, { strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }> = {
-  default: {
-    strengths: [
-      "Netlife mantiene la mayor presencia en Chillogallo con 8 anuncios activos esta semana",
-      "CNT ofrece los precios más bajos del mercado en planes de 100 Mbps ($15-22/mes)",
-      "PuntoNet intensificó campañas en Quitumbe con promociones de instalación gratuita",
-      "Celerity lanzó bundle TV+Internet con descuento del 25% en Solanda",
-    ],
-    weaknesses: [
-      "Celerity reporta múltiples quejas de servicio técnico en Guajaló (simulado Twitter)",
-      "CNT muestra tiempos de instalación lentos según comentarios simulados de clientes",
-      "PuntoNet tiene cobertura limitada en La Ecuatoriana vs. Nettplus",
-      "Netlife registra caídas de servicio los fines de semana según datos simulados",
-    ],
-    opportunities: [
-      "Ningún competidor tiene presencia fuerte en el sector de La Ecuatoriana",
-      "La brecha de precio entre CNT y los privados permite posicionamiento de valor premium",
-      "Crecimiento de demanda de 500 Mbps+ en zonas residenciales nuevas",
-      "Temporada escolar genera alta demanda de planes familiares en el Sur",
-    ],
-    threats: [
-      "Netlife bajó precios en Chillogallo un 15% este mes — riesgo de churn",
-      "PuntoNet expandió cobertura a 3 nuevos sectores en el Sur esta semana",
-      "CNT podría recibir subsidio estatal para acelerar instalaciones",
-      "Celerity anuncia fibra simétrica de 1 Gbps a precio competitivo para Q2",
-    ],
-  },
-  "Sur de Quito": {
-    strengths: [
-      "Netlife domina Chillogallo con 12 anuncios de alta relevancia esta semana",
-      "PuntoNet es el más agresivo en precio en Quitumbe ($19.99/mes por 100 Mbps)",
-      "Celerity instalación gratis activa en Solanda y sectores aledaños",
-      "CNT expande fibra óptica en La Ecuatoriana con apoyo municipal",
-    ],
-    weaknesses: [
-      "Celerity tiene ratio de quejas 3x mayor en el Sur vs. el Norte",
-      "CNT tiene velocidades reales 40% menores a las prometidas según feedback simulado",
-      "PuntoNet sin cobertura en Guajaló — oportunidad para Nettplus",
-      "Netlife reporta demoras de 2-3 semanas en instalación en el Sur",
-    ],
-    opportunities: [
-      "Guajaló tiene baja penetración de fibra óptica — mercado virgen",
-      "Proyectos de vivienda nueva en Quitumbe sin ISP dominante establecido",
-      "Demanda creciente de trabajo remoto impulsa necesidad de mayor ancho de banda",
-      "Alianza con municipio del Sur podría dar ventaja de acceso a infraestructura",
-    ],
-    threats: [
-      "Netlife lanza campaña de fidelización con 2 meses gratis en Chillogallo",
-      "PuntoNet y CNT anunciaron expansión conjunta de red en el Sur para Q3",
-      "Celerity baja precio de plan 300 Mbps a $38/mes en Solanda",
-      "Gobierno anuncia subsidio de conectividad para zonas Sur de Quito",
-    ],
-  },
-};
-
-const MAP_POINTS_BASE: Array<{ lat: number; lng: number; neighborhood: string; competitor: string; speed: number; baseSeed: number }> = [
+const MAP_POINTS_BASE: Array<{
+  lat: number;
+  lng: number;
+  neighborhood: string;
+  competitor: string;
+  speed: number;
+  baseSeed: number;
+}> = [
   { lat: -0.298, lng: -78.573, neighborhood: "Chillogallo", competitor: "Netlife", speed: 300, baseSeed: 1 },
   { lat: -0.298, lng: -78.573, neighborhood: "Chillogallo", competitor: "PuntoNet", speed: 200, baseSeed: 2 },
   { lat: -0.315, lng: -78.561, neighborhood: "Quitumbe", competitor: "Netlife", speed: 500, baseSeed: 3 },
@@ -283,6 +279,10 @@ const MAP_POINTS_BASE: Array<{ lat: number; lng: number; neighborhood: string; c
   { lat: -0.282, lng: -78.544, neighborhood: "Solanda", competitor: "Netlife", speed: 300, baseSeed: 7 },
   { lat: -0.334, lng: -78.556, neighborhood: "La Ecuatoriana", competitor: "CNT", speed: 100, baseSeed: 8 },
   { lat: -0.267, lng: -78.520, neighborhood: "Guajaló", competitor: "Celerity", speed: 200, baseSeed: 9 },
+  { lat: -0.350, lng: -78.540, neighborhood: "La Ajaví", competitor: "CNT", speed: 100, baseSeed: 17 },
+  { lat: -0.350, lng: -78.540, neighborhood: "La Ajaví", competitor: "Celerity", speed: 200, baseSeed: 18 },
+  { lat: -0.360, lng: -78.548, neighborhood: "Turubamba", competitor: "PuntoNet", speed: 100, baseSeed: 19 },
+  { lat: -0.340, lng: -78.535, neighborhood: "La Mena", competitor: "Netlife", speed: 300, baseSeed: 20 },
   { lat: -0.217, lng: -78.489, neighborhood: "La Mariscal", competitor: "Netlife", speed: 1000, baseSeed: 10 },
   { lat: -0.217, lng: -78.489, neighborhood: "La Mariscal", competitor: "PuntoNet", speed: 500, baseSeed: 11 },
   { lat: -0.196, lng: -78.441, neighborhood: "González Suárez", competitor: "Netlife", speed: 1000, baseSeed: 12 },
@@ -297,9 +297,9 @@ export function generateMapPoints(location?: string): MapPoint[] {
     const priceRange = PRICE_RANGES[p.competitor][p.speed] ?? [20, 50];
     const price = randomInRange(priceRange[0], priceRange[1], p.baseSeed * 13);
     const intensity: "high" | "medium" | "low" =
-      p.neighborhood === "Chillogallo" || p.neighborhood === "Quitumbe"
+      ["Chillogallo", "Quitumbe"].includes(p.neighborhood)
         ? "high"
-        : p.neighborhood === "Solanda" || p.neighborhood === "La Ecuatoriana"
+        : ["Solanda", "La Ecuatoriana", "La Ajaví"].includes(p.neighborhood)
         ? "medium"
         : "low";
 
@@ -312,16 +312,14 @@ export function generateMapPoints(location?: string): MapPoint[] {
       neighborhood: p.neighborhood,
       intensity,
     };
-  }).filter((pt) => {
-    if (!location || location === "Todo Quito" || location === "all") return true;
-    const surZones = ["Chillogallo", "Quitumbe", "Solanda", "La Ecuatoriana", "Guajaló", "Sur de Quito"];
-    const valleyZones = ["Cumbayá", "Tumbaco", "Los Chillos", "Valles"];
-    const northZones = ["La Mariscal", "González Suárez", "El Batán", "Norte de Quito"];
-    if (location === "Sur de Quito") return surZones.includes(pt.neighborhood);
-    if (location === "Valles") return valleyZones.includes(pt.neighborhood);
-    if (location === "Norte de Quito") return northZones.includes(pt.neighborhood);
-    return pt.neighborhood.toLowerCase().includes(location.toLowerCase());
-  });
+  }).filter((pt) => matchesLocationFilter(pt.neighborhood, location));
+}
+
+function matchesLocationFilter(neighborhood: string, location?: string): boolean {
+  if (!location || location === "Todo Quito" || location === "all" || location === "") return true;
+  const region = REGIONS.find((r) => r.name === location || r.id === location);
+  if (region) return region.neighborhoods.includes(neighborhood);
+  return neighborhood.toLowerCase().includes(location.toLowerCase());
 }
 
 let cachedOffers: CompetitorOffer[] | null = null;
@@ -340,6 +338,7 @@ export function filterOffers(
   params: {
     competitor?: string | string[];
     location?: string;
+    neighborhoods?: string | string[];
     dateFrom?: string;
     dateTo?: string;
   }
@@ -347,38 +346,48 @@ export function filterOffers(
   let filtered = [...offers];
 
   if (params.competitor) {
-    const comps = Array.isArray(params.competitor) ? params.competitor : [params.competitor];
-    if (comps.length > 0 && comps[0] !== "") {
+    const comps = Array.isArray(params.competitor)
+      ? params.competitor
+      : params.competitor.split(",").map((c) => c.trim()).filter(Boolean);
+    if (comps.length > 0) {
       filtered = filtered.filter((o) => comps.includes(o.competitor));
     }
   }
 
-  if (params.location && params.location !== "all" && params.location !== "Todo Quito") {
+  if (params.neighborhoods) {
+    const nbs = Array.isArray(params.neighborhoods)
+      ? params.neighborhoods
+      : params.neighborhoods.split(",").map((n) => n.trim()).filter(Boolean);
+    if (nbs.length > 0) {
+      filtered = filtered.filter((o) => nbs.includes(o.specificLocation));
+      return applyDateFilter(filtered, params);
+    }
+  }
+
+  if (params.location && params.location !== "all" && params.location !== "Todo Quito" && params.location !== "") {
     const loc = params.location;
-    filtered = filtered.filter((o) => {
-      if (loc === "Sur de Quito") {
-        return (
-          o.inferredLocation === "Sur de Quito" ||
-          ["Chillogallo", "Quitumbe", "Solanda", "La Ecuatoriana", "Guajaló"].includes(o.specificLocation)
-        );
-      }
-      if (loc === "Valles") return o.inferredLocation === "Valles";
-      if (loc === "Norte de Quito") return o.inferredLocation === "Norte de Quito";
-      return (
-        o.specificLocation.toLowerCase().includes(loc.toLowerCase()) ||
-        o.inferredLocation.toLowerCase().includes(loc.toLowerCase())
+    const region = REGIONS.find((r) => r.name === loc || r.id === loc);
+    if (region) {
+      filtered = filtered.filter((o) => region.neighborhoods.includes(o.specificLocation));
+    } else {
+      filtered = filtered.filter(
+        (o) =>
+          o.specificLocation.toLowerCase().includes(loc.toLowerCase()) ||
+          o.inferredLocation.toLowerCase().includes(loc.toLowerCase())
       );
-    });
+    }
   }
 
-  if (params.dateFrom) {
-    filtered = filtered.filter((o) => o.detectedDate >= params.dateFrom!);
-  }
+  return applyDateFilter(filtered, params);
+}
 
-  if (params.dateTo) {
-    filtered = filtered.filter((o) => o.detectedDate <= params.dateTo!);
-  }
-
+function applyDateFilter(
+  offers: CompetitorOffer[],
+  params: { dateFrom?: string; dateTo?: string }
+): CompetitorOffer[] {
+  let filtered = offers;
+  if (params.dateFrom) filtered = filtered.filter((o) => o.detectedDate >= params.dateFrom!);
+  if (params.dateTo) filtered = filtered.filter((o) => o.detectedDate <= params.dateTo!);
   return filtered;
 }
 
@@ -405,21 +414,87 @@ export function computePriceComparison(offers: CompetitorOffer[]): PriceComparis
   });
 }
 
+export function computeMarketShare(offers: CompetitorOffer[]): MarketShare[] {
+  const counts: Record<string, number> = {};
+  for (const o of offers) {
+    counts[o.competitor] = (counts[o.competitor] ?? 0) + 1;
+  }
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([competitor, offerCount]) => ({
+      competitor,
+      offerCount,
+      percentage: total > 0 ? Math.round((offerCount / total) * 1000) / 10 : 0,
+      color: COMPETITOR_COLORS[competitor] ?? "hsl(var(--primary))",
+    }));
+}
+
+const SWOT_DATA: Record<string, { strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }> = {
+  default: {
+    strengths: [
+      "Netlife mantiene la mayor presencia en Chillogallo con 8 anuncios activos esta semana",
+      "CNT ofrece los precios más bajos del mercado en planes de 100 Mbps ($15-22/mes)",
+      "PuntoNet intensificó campañas en Quitumbe con promociones de instalación gratuita",
+      "Celerity lanzó bundle TV+Internet con descuento del 25% en Solanda",
+    ],
+    weaknesses: [
+      "Celerity reporta múltiples quejas de servicio técnico en Guajaló (simulado Twitter)",
+      "CNT muestra tiempos de instalación lentos según comentarios simulados de clientes",
+      "PuntoNet tiene cobertura limitada en La Ecuatoriana vs. Nettplus",
+      "Netlife registra caídas de servicio los fines de semana según datos simulados",
+    ],
+    opportunities: [
+      "Ningún competidor tiene presencia fuerte en el sector de La Ajaví",
+      "La brecha de precio entre CNT y los privados permite posicionamiento de valor premium",
+      "Crecimiento de demanda de 500 Mbps+ en zonas residenciales nuevas del Sur",
+      "Temporada escolar genera alta demanda de planes familiares en el Sur",
+    ],
+    threats: [
+      "Netlife bajó precios en Chillogallo un 15% este mes — riesgo de churn",
+      "PuntoNet expandió cobertura a 3 nuevos sectores en el Sur esta semana",
+      "CNT podría recibir subsidio estatal para acelerar instalaciones",
+      "Celerity anuncia fibra simétrica de 1 Gbps a precio competitivo para Q2",
+    ],
+  },
+  "Sur de Quito": {
+    strengths: [
+      "Netlife domina Chillogallo con 12 anuncios de alta relevancia esta semana",
+      "PuntoNet es el más agresivo en precio en Quitumbe ($19.99/mes por 100 Mbps)",
+      "Celerity con instalación gratis activa en Solanda y sectores aledaños",
+      "CNT expande fibra óptica en La Ecuatoriana y La Ajaví con apoyo municipal",
+    ],
+    weaknesses: [
+      "Celerity tiene ratio de quejas 3x mayor en el Sur vs. el Norte de Quito",
+      "CNT tiene velocidades reales 40% menores a las prometidas en el Sur",
+      "PuntoNet sin cobertura confirmada en Turubamba y La Mena",
+      "Netlife reporta demoras de 2-3 semanas en instalación en sectores del Sur",
+    ],
+    opportunities: [
+      "La Ajaví y Turubamba tienen baja penetración de fibra óptica — mercado virgen",
+      "Proyectos de vivienda nueva en Quitumbe sin ISP dominante establecido",
+      "Demanda creciente de trabajo remoto impulsa necesidad de mayor ancho de banda",
+      "Alianza con municipio del Sur podría dar ventaja de acceso a infraestructura",
+    ],
+    threats: [
+      "Netlife lanza campaña de fidelización con 2 meses gratis en Chillogallo",
+      "PuntoNet y CNT anunciaron expansión conjunta de red en el Sur para Q3",
+      "Celerity baja precio de plan 300 Mbps a $38/mes en Solanda",
+      "Gobierno anuncia subsidio de conectividad para zonas Sur de Quito",
+    ],
+  },
+};
+
 export function getSwotAnalysis(location?: string, competitor?: string): SwotAnalysis {
-  const data = (location && SWOT_DATA[location]) ? SWOT_DATA[location] : SWOT_DATA["default"];
+  const data =
+    location && SWOT_DATA[location] ? SWOT_DATA[location] : SWOT_DATA["default"];
 
   if (competitor && competitor !== "all") {
-    const filtered = {
-      strengths: data.strengths.filter((s) => s.includes(competitor)),
-      weaknesses: data.weaknesses.filter((s) => s.includes(competitor)),
-      opportunities: data.opportunities,
-      threats: data.threats.filter((s) => s.includes(competitor)),
-    };
     return {
-      ...filtered,
-      strengths: filtered.strengths.length ? filtered.strengths : data.strengths.slice(0, 2),
-      weaknesses: filtered.weaknesses.length ? filtered.weaknesses : data.weaknesses.slice(0, 2),
-      threats: filtered.threats.length ? filtered.threats : data.threats.slice(0, 2),
+      strengths: data.strengths.filter((s) => s.includes(competitor)).slice(0, 2).concat(data.strengths.slice(0, 1)),
+      weaknesses: data.weaknesses.filter((s) => s.includes(competitor)).slice(0, 2).concat(data.weaknesses.slice(0, 1)),
+      opportunities: data.opportunities,
+      threats: data.threats.filter((s) => s.includes(competitor)).slice(0, 2).concat(data.threats.slice(0, 1)),
       lastUpdated: new Date().toISOString(),
     };
   }
@@ -427,19 +502,26 @@ export function getSwotAnalysis(location?: string, competitor?: string): SwotAna
   return { ...data, lastUpdated: new Date().toISOString() };
 }
 
-export function getDashboardSummary(): DashboardSummary {
-  const offers = getAllOffers();
-  const highRelevance = offers.filter((o) => o.localRelevance === "ALTA");
-  const avgPrice = offers.reduce((a, o) => a + o.price, 0) / offers.length;
+export function getDashboardSummary(location?: string, neighborhoods?: string): DashboardSummary {
+  const allOffers = getAllOffers();
+  const nbs = neighborhoods ? neighborhoods.split(",").map((n) => n.trim()).filter(Boolean) : [];
+  const filtered = filterOffers(allOffers, { location, neighborhoods: nbs.length ? nbs : undefined });
+  const highRelevance = filtered.filter((o) => o.localRelevance === "ALTA");
+  const newOffers = filtered.filter((o) => o.isNew);
+  const avgPrice = filtered.length > 0 ? filtered.reduce((a, o) => a + o.price, 0) / filtered.length : 0;
+
+  let regionName = "Todo Quito";
+  if (nbs.length > 0) regionName = nbs.join(", ");
+  else if (location && location !== "Todo Quito" && location !== "all") regionName = location;
 
   return {
-    totalOffersDetected: offers.length,
+    totalOffersDetected: filtered.length,
     highRelevanceOffers: highRelevance.length,
-    competitorsTracked: COMPETITORS.length,
+    competitorsTracked: 4,
     avgMarketPrice: Math.round(avgPrice * 100) / 100,
     lastRefresh: new Date().toISOString(),
-    alertsCount: highRelevance.filter(
-      (o) => o.detectedDate === format(new Date(), "yyyy-MM-dd")
-    ).length,
+    alertsCount: newOffers.filter((o) => o.localRelevance === "ALTA").length,
+    newOffersCount: newOffers.length,
+    selectedRegionName: regionName,
   };
 }

@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetPriceComparisonParams = {
-  location?: string;
-  neighborhoods?: string;
-};
+export interface MarketShare {
+  competitor: string;
+  offerCount: number;
+  percentage: number;
+  color: string;
+}

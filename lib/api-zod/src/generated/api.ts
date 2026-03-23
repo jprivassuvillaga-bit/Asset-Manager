@@ -16,12 +16,24 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * Returns the regional structure of Quito with sub-neighborhoods
+ * @summary Get regions and neighborhoods
+ */
+export const GetRegionsResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  neighborhoods: zod.array(zod.string()),
+});
+export const GetRegionsResponse = zod.array(GetRegionsResponseItem);
+
+/**
  * Returns simulated competitor ad/offer data with geographic relevance scoring
  * @summary Get competitor offers
  */
 export const GetCompetitorOffersQueryParams = zod.object({
-  competitor: zod.array(zod.coerce.string()).optional(),
+  competitor: zod.coerce.string().optional(),
   location: zod.coerce.string().optional(),
+  neighborhoods: zod.coerce.string().optional(),
   dateFrom: zod.date().optional(),
   dateTo: zod.date().optional(),
 });
@@ -40,6 +52,7 @@ export const GetCompetitorOffersResponseItem = zod.object({
   offerType: zod.string(),
   sourceUrl: zod.string(),
   localRelevance: zod.enum(["ALTA", "MEDIA", "BAJA"]),
+  isNew: zod.boolean(),
 });
 export const GetCompetitorOffersResponse = zod.array(
   GetCompetitorOffersResponseItem,
@@ -51,6 +64,7 @@ export const GetCompetitorOffersResponse = zod.array(
  */
 export const GetPriceComparisonQueryParams = zod.object({
   location: zod.coerce.string().optional(),
+  neighborhoods: zod.coerce.string().optional(),
 });
 
 export const GetPriceComparisonResponseItem = zod.object({
@@ -64,6 +78,23 @@ export const GetPriceComparisonResponseItem = zod.object({
 export const GetPriceComparisonResponse = zod.array(
   GetPriceComparisonResponseItem,
 );
+
+/**
+ * Returns offer count per competitor for the selected region
+ * @summary Get market share data
+ */
+export const GetMarketShareQueryParams = zod.object({
+  location: zod.coerce.string().optional(),
+  neighborhoods: zod.coerce.string().optional(),
+});
+
+export const GetMarketShareResponseItem = zod.object({
+  competitor: zod.string(),
+  offerCount: zod.number(),
+  percentage: zod.number(),
+  color: zod.string(),
+});
+export const GetMarketShareResponse = zod.array(GetMarketShareResponseItem);
 
 /**
  * Returns dynamic SWOT analysis based on filters
@@ -105,6 +136,11 @@ export const GetMapPointsResponse = zod.array(GetMapPointsResponseItem);
  * Returns high-level summary statistics for the dashboard
  * @summary Get summary stats
  */
+export const GetCompetitorSummaryQueryParams = zod.object({
+  location: zod.coerce.string().optional(),
+  neighborhoods: zod.coerce.string().optional(),
+});
+
 export const GetCompetitorSummaryResponse = zod.object({
   totalOffersDetected: zod.number(),
   highRelevanceOffers: zod.number(),
@@ -112,4 +148,6 @@ export const GetCompetitorSummaryResponse = zod.object({
   avgMarketPrice: zod.number(),
   lastRefresh: zod.string(),
   alertsCount: zod.number(),
+  newOffersCount: zod.number(),
+  selectedRegionName: zod.string(),
 });

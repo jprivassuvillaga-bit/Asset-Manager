@@ -26,6 +26,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /competitors/regions:
+    get:
+      operationId: getRegions
+      tags: [competitors]
+      summary: Get regions and neighborhoods
+      description: Returns the regional structure of Quito with sub-neighborhoods
+      responses:
+        "200":
+          description: Regions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Region"
+
   /competitors/offers:
     get:
       operationId: getCompetitorOffers
@@ -37,10 +53,13 @@ paths:
           in: query
           required: false
           schema:
-            type: array
-            items:
-              type: string
+            type: string
         - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: neighborhoods
           in: query
           required: false
           schema:
@@ -79,6 +98,11 @@ paths:
           required: false
           schema:
             type: string
+        - name: neighborhoods
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: Price comparison data
@@ -88,6 +112,33 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PriceComparison"
+
+  /competitors/market-share:
+    get:
+      operationId: getMarketShare
+      tags: [competitors]
+      summary: Get market share data
+      description: Returns offer count per competitor for the selected region
+      parameters:
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: neighborhoods
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Market share data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketShare"
 
   /competitors/swot:
     get:
@@ -142,6 +193,17 @@ paths:
       tags: [competitors]
       summary: Get summary stats
       description: Returns high-level summary statistics for the dashboard
+      parameters:
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: neighborhoods
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: Summary statistics
@@ -159,6 +221,22 @@ components:
           type: string
       required:
         - status
+
+    Region:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        neighborhoods:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - neighborhoods
 
     CompetitorOffer:
       type: object
@@ -191,6 +269,8 @@ components:
         localRelevance:
           type: string
           enum: [ALTA, MEDIA, BAJA]
+        isNew:
+          type: boolean
       required:
         - id
         - detectedDate
@@ -205,6 +285,7 @@ components:
         - offerType
         - sourceUrl
         - localRelevance
+        - isNew
 
     PriceComparison:
       type: object
@@ -228,6 +309,23 @@ components:
         - offerCount
         - minPrice
         - maxPrice
+
+    MarketShare:
+      type: object
+      properties:
+        competitor:
+          type: string
+        offerCount:
+          type: number
+        percentage:
+          type: number
+        color:
+          type: string
+      required:
+        - competitor
+        - offerCount
+        - percentage
+        - color
 
     SwotAnalysis:
       type: object
@@ -299,6 +397,10 @@ components:
           type: string
         alertsCount:
           type: number
+        newOffersCount:
+          type: number
+        selectedRegionName:
+          type: string
       required:
         - totalOffersDetected
         - highRelevanceOffers
@@ -306,3 +408,5 @@ components:
         - avgMarketPrice
         - lastRefresh
         - alertsCount
+        - newOffersCount
+        - selectedRegionName

@@ -9,6 +9,12 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface Region {
+  id: string;
+  name: string;
+  neighborhoods: string[];
+}
+
 export type CompetitorOfferLocalRelevance =
   (typeof CompetitorOfferLocalRelevance)[keyof typeof CompetitorOfferLocalRelevance];
 
@@ -32,6 +38,7 @@ export interface CompetitorOffer {
   offerType: string;
   sourceUrl: string;
   localRelevance: CompetitorOfferLocalRelevance;
+  isNew: boolean;
 }
 
 export interface PriceComparison {
@@ -41,6 +48,13 @@ export interface PriceComparison {
   offerCount: number;
   minPrice: number;
   maxPrice: number;
+}
+
+export interface MarketShare {
+  competitor: string;
+  offerCount: number;
+  percentage: number;
+  color: string;
 }
 
 export interface SwotAnalysis {
@@ -77,17 +91,26 @@ export interface DashboardSummary {
   avgMarketPrice: number;
   lastRefresh: string;
   alertsCount: number;
+  newOffersCount: number;
+  selectedRegionName: string;
 }
 
 export type GetCompetitorOffersParams = {
-  competitor?: string[];
+  competitor?: string;
   location?: string;
+  neighborhoods?: string;
   dateFrom?: string;
   dateTo?: string;
 };
 
 export type GetPriceComparisonParams = {
   location?: string;
+  neighborhoods?: string;
+};
+
+export type GetMarketShareParams = {
+  location?: string;
+  neighborhoods?: string;
 };
 
 export type GetSwotAnalysisParams = {
@@ -97,4 +120,9 @@ export type GetSwotAnalysisParams = {
 
 export type GetMapPointsParams = {
   location?: string;
+};
+
+export type GetCompetitorSummaryParams = {
+  location?: string;
+  neighborhoods?: string;
 };

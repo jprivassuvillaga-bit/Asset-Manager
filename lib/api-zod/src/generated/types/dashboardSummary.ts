@@ -13,4 +13,6 @@ export interface DashboardSummary {
   avgMarketPrice: number;
   lastRefresh: string;
   alertsCount: number;
+  newOffersCount: number;
+  selectedRegionName: string;
 }

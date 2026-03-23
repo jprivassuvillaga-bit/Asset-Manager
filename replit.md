@@ -4,6 +4,30 @@
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
+## Nettplus Competitor Sentinel
+
+Competitive intelligence dashboard for Nettplus (ISP in southern Quito). Tracks 4 competitors: Netlife, PuntoNet, Celerity, CNT.
+
+### Features
+- **Region + Barrio Selector**: 4 main regions (Sur, Centro, Norte, Valles) with sub-neighborhood multiselect
+- **Offer Radar**: Grid of competitor offer cards with "NUEVO" badge for today's offers
+- **New Offers Alert**: Live banner showing offers detected in last 24h per region
+- **Price Comparison**: Bar chart comparing avg price and price/Mbps per competitor
+- **Market Share Chart**: Pie/bar chart showing offer volume distribution per competitor
+- **SWOT Analysis**: Dynamic 4-quadrant analysis per region/competitor
+- **Presence Map**: Hot zones with intensity indicators
+
+### API Endpoints (`/api/competitors/`)
+- `GET /regions` — Region + neighborhood structure
+- `GET /offers` — Filtered competitor offers (supports `competitor`, `location`, `neighborhoods`, `dateFrom`, `dateTo`)
+- `GET /price-comparison` — Avg price per competitor
+- `GET /market-share` — Offer count share per competitor
+- `GET /swot` — SWOT analysis
+- `GET /map-points` — Geographic hotspot data
+- `GET /summary` — Dashboard KPIs including `newOffersCount`
+
+All data is simulated via `artifacts/api-server/src/data/competitorEngine.ts`.
+
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces

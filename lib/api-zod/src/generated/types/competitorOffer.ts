@@ -21,4 +21,5 @@ export interface CompetitorOffer {
   offerType: string;
   sourceUrl: string;
   localRelevance: CompetitorOfferLocalRelevance;
+  isNew: boolean;
 }

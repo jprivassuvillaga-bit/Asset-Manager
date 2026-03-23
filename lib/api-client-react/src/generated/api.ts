@@ -17,12 +17,16 @@ import type {
   CompetitorOffer,
   DashboardSummary,
   GetCompetitorOffersParams,
+  GetCompetitorSummaryParams,
   GetMapPointsParams,
+  GetMarketShareParams,
   GetPriceComparisonParams,
   GetSwotAnalysisParams,
   HealthStatus,
   MapPoint,
+  MarketShare,
   PriceComparison,
+  Region,
   SwotAnalysis,
 } from "./api.schemas";
 
@@ -103,6 +107,80 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns the regional structure of Quito with sub-neighborhoods
+ * @summary Get regions and neighborhoods
+ */
+export const getGetRegionsUrl = () => {
+  return `/api/competitors/regions`;
+};
+
+export const getRegions = async (options?: RequestInit): Promise<Region[]> => {
+  return customFetch<Region[]>(getGetRegionsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRegionsQueryKey = () => {
+  return [`/api/competitors/regions`] as const;
+};
+
+export const getGetRegionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRegions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRegions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRegionsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRegions>>> = ({
+    signal,
+  }) => getRegions({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRegions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRegionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRegions>>
+>;
+export type GetRegionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get regions and neighborhoods
+ */
+
+export function useGetRegions<
+  TData = Awaited<ReturnType<typeof getRegions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRegions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRegionsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -314,6 +392,104 @@ export function useGetPriceComparison<
 }
 
 /**
+ * Returns offer count per competitor for the selected region
+ * @summary Get market share data
+ */
+export const getGetMarketShareUrl = (params?: GetMarketShareParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/competitors/market-share?${stringifiedParams}`
+    : `/api/competitors/market-share`;
+};
+
+export const getMarketShare = async (
+  params?: GetMarketShareParams,
+  options?: RequestInit,
+): Promise<MarketShare[]> => {
+  return customFetch<MarketShare[]>(getGetMarketShareUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMarketShareQueryKey = (params?: GetMarketShareParams) => {
+  return [
+    `/api/competitors/market-share`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetMarketShareQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMarketShare>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetMarketShareParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMarketShare>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMarketShareQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketShare>>> = ({
+    signal,
+  }) => getMarketShare(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMarketShare>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMarketShareQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMarketShare>>
+>;
+export type GetMarketShareQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get market share data
+ */
+
+export function useGetMarketShare<
+  TData = Awaited<ReturnType<typeof getMarketShare>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetMarketShareParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMarketShare>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMarketShareQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * Returns dynamic SWOT analysis based on filters
  * @summary Get SWOT analysis
  */
@@ -507,41 +683,63 @@ export function useGetMapPoints<
  * Returns high-level summary statistics for the dashboard
  * @summary Get summary stats
  */
-export const getGetCompetitorSummaryUrl = () => {
-  return `/api/competitors/summary`;
+export const getGetCompetitorSummaryUrl = (
+  params?: GetCompetitorSummaryParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/competitors/summary?${stringifiedParams}`
+    : `/api/competitors/summary`;
 };
 
 export const getCompetitorSummary = async (
+  params?: GetCompetitorSummaryParams,
   options?: RequestInit,
 ): Promise<DashboardSummary> => {
-  return customFetch<DashboardSummary>(getGetCompetitorSummaryUrl(), {
+  return customFetch<DashboardSummary>(getGetCompetitorSummaryUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetCompetitorSummaryQueryKey = () => {
-  return [`/api/competitors/summary`] as const;
+export const getGetCompetitorSummaryQueryKey = (
+  params?: GetCompetitorSummaryParams,
+) => {
+  return [`/api/competitors/summary`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetCompetitorSummaryQueryOptions = <
   TData = Awaited<ReturnType<typeof getCompetitorSummary>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getCompetitorSummary>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: GetCompetitorSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCompetitorSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetCompetitorSummaryQueryKey();
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCompetitorSummaryQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getCompetitorSummary>>
-  > = ({ signal }) => getCompetitorSummary({ signal, ...requestOptions });
+  > = ({ signal }) =>
+    getCompetitorSummary(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getCompetitorSummary>>,
@@ -562,15 +760,18 @@ export type GetCompetitorSummaryQueryError = ErrorType<unknown>;
 export function useGetCompetitorSummary<
   TData = Awaited<ReturnType<typeof getCompetitorSummary>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getCompetitorSummary>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetCompetitorSummaryQueryOptions(options);
+>(
+  params?: GetCompetitorSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCompetitorSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCompetitorSummaryQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
