@@ -1,0 +1,14 @@
+packages:
+  "recharts": "For the Price Comparison interactive bar charts"
+  "framer-motion": "For sleek entry animations and dashboard micro-interactions"
+  "clsx": "For conditional class merging"
+  "tailwind-merge": "For merging tailwind classes in UI components"
+
+images:
+  - path: "artifacts/nettplus-sentinel/public/images/radar-bg.png"
+    description: "Dark high-tech radar interface background with glowing electric blue grid lines and subtle data points, deep navy base"
+    aspect_ratio: "16:9"
+
+notes:
+  - Using generated hooks from @workspace/api-client-react
+  - Simulating the presence map with a styled list as suggested for reliability

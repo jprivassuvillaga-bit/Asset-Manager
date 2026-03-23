@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Nettplus Competitor Sentinel API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: competitors
+    description: Competitor intelligence data
 paths:
   /healthz:
     get:
@@ -24,6 +25,131 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /competitors/offers:
+    get:
+      operationId: getCompetitorOffers
+      tags: [competitors]
+      summary: Get competitor offers
+      description: Returns simulated competitor ad/offer data with geographic relevance scoring
+      parameters:
+        - name: competitor
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of competitor offers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompetitorOffer"
+
+  /competitors/price-comparison:
+    get:
+      operationId: getPriceComparison
+      tags: [competitors]
+      summary: Get price comparison data
+      description: Returns price per mega comparison across competitors
+      parameters:
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Price comparison data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PriceComparison"
+
+  /competitors/swot:
+    get:
+      operationId: getSwotAnalysis
+      tags: [competitors]
+      summary: Get SWOT analysis
+      description: Returns dynamic SWOT analysis based on filters
+      parameters:
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: competitor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SWOT analysis data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SwotAnalysis"
+
+  /competitors/map-points:
+    get:
+      operationId: getMapPoints
+      tags: [competitors]
+      summary: Get map data points
+      description: Returns geographic data points for competitor offers
+      parameters:
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Map data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MapPoint"
+
+  /competitors/summary:
+    get:
+      operationId: getCompetitorSummary
+      tags: [competitors]
+      summary: Get summary stats
+      description: Returns high-level summary statistics for the dashboard
+      responses:
+        "200":
+          description: Summary statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +160,149 @@ components:
       required:
         - status
 
+    CompetitorOffer:
+      type: object
+      properties:
+        id:
+          type: string
+        detectedDate:
+          type: string
+          format: date
+        competitor:
+          type: string
+        adImageUrl:
+          type: string
+        adCaption:
+          type: string
+        plan:
+          type: string
+        price:
+          type: number
+        speedMbps:
+          type: number
+        inferredLocation:
+          type: string
+        specificLocation:
+          type: string
+        offerType:
+          type: string
+        sourceUrl:
+          type: string
+        localRelevance:
+          type: string
+          enum: [ALTA, MEDIA, BAJA]
+      required:
+        - id
+        - detectedDate
+        - competitor
+        - adImageUrl
+        - adCaption
+        - plan
+        - price
+        - speedMbps
+        - inferredLocation
+        - specificLocation
+        - offerType
+        - sourceUrl
+        - localRelevance
+
+    PriceComparison:
+      type: object
+      properties:
+        competitor:
+          type: string
+        avgPricePerMbps:
+          type: number
+        avgPrice:
+          type: number
+        offerCount:
+          type: number
+        minPrice:
+          type: number
+        maxPrice:
+          type: number
+      required:
+        - competitor
+        - avgPricePerMbps
+        - avgPrice
+        - offerCount
+        - minPrice
+        - maxPrice
+
+    SwotAnalysis:
+      type: object
+      properties:
+        strengths:
+          type: array
+          items:
+            type: string
+        weaknesses:
+          type: array
+          items:
+            type: string
+        opportunities:
+          type: array
+          items:
+            type: string
+        threats:
+          type: array
+          items:
+            type: string
+        lastUpdated:
+          type: string
+      required:
+        - strengths
+        - weaknesses
+        - opportunities
+        - threats
+        - lastUpdated
+
+    MapPoint:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        competitor:
+          type: string
+        plan:
+          type: string
+        price:
+          type: number
+        neighborhood:
+          type: string
+        intensity:
+          type: string
+          enum: [high, medium, low]
+      required:
+        - lat
+        - lng
+        - competitor
+        - plan
+        - price
+        - neighborhood
+        - intensity
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalOffersDetected:
+          type: number
+        highRelevanceOffers:
+          type: number
+        competitorsTracked:
+          type: number
+        avgMarketPrice:
+          type: number
+        lastRefresh:
+          type: string
+        alertsCount:
+          type: number
+      required:
+        - totalOffersDetected
+        - highRelevanceOffers
+        - competitorsTracked
+        - avgMarketPrice
+        - lastRefresh
+        - alertsCount

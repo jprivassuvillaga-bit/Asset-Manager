@@ -1,0 +1,65 @@
+Prompt para Replit Agent
+
+Título del Proyecto: Desarrollo de "Nettplus Competitor Sentinel" - Dashboard Independiente de Inteligencia Competitiva para ISPs locales.
+
+Rol del Agente: Actúa como un Ingeniero Full Stack Senior de Datos y Desarrollador de Python especializado en Business Intelligence y Automatización.
+
+Contexto del Cliente:
+Nettplus es un proveedor de internet (ISP) en el Sur de Quito. Necesita monitorear a su competencia (Netlife, PuntoNet, Celerity, CNT) día a día. Actualmente, las ofertas cambian rápido y se promocionan principalmente a través de anuncios en Instagram/Facebook ("Dark Ads") y cambios en sus páginas web. Necesitamos un dashboard propio e interactivo para que la agencia de marketing de Nettplus pueda reaccionar rápido.
+
+Objetivo Técnico:
+Crear una aplicación web completa en Replit (usando Python y Streamlit) que centralice, procese y visualice datos de la competencia. La aplicación debe manejar todo el flujo: scraping simulado, procesamiento de IA y el frontend interactivo.
+
+Requerimientos Funcionales por Módulo:
+
+1. Arquitectura de Datos y Simulación (Backend)
+
+Como no tenemos acceso a las claves API reales de Meta o scraping web en vivo en este momento, debes construir un motor de simulación de datos robusto.
+
+Crea un script que genere datos diarios "mock" (falsos pero realistas) para al menos 4 competidores.
+
+Estructura del Dato Generado: Cada registro debe contener: Fecha de detección, Nombre del Competidor, URL de la imagen del anuncio (placeholder), Texto del anuncio (Caption), Plan detectado (ej. "300 Megas"), Precio detectado, Ubicación inferida (ej. "Chillogallo", "Quito Global"), Tipo de Oferta ("Instalación Gratis", "Descuento mensual"), Enlace a la fuente ("Evidencia Real").
+
+2. Filtro Geográfico y de Relevancia con IA (Capa de Lógica)
+
+Imagina que los datos crudos pasan por una IA. Debes programar una función que simule este comportamiento:
+
+Lógica de Ubicación: Si el texto del anuncio contiene palabras como "Sur de Quito", "Quitumbe", "Chillogallo", "Solanda", debe etiquetar el registro con una columna Ubicación_Específica y marcar Relevancia_Local como ALTA. Si solo dice "Quito" o "Ecuador", la relevancia es MEDIA/BAJA.
+
+3. Dashboard Interactivo (Frontend en Streamlit)
+
+Desarrolla la interfaz web. Debe ser visualmente atractiva (usa el logo y colores de Nettplus si es posible). Debe incluir:
+
+Panel de Filtros Dinámicos (Sidebar):
+
+Selector de Ubicación (Search box/Dropdown): Permitir al usuario escribir o seleccionar áreas (ej. "Sur de Quito", "Todo Quito", "Valles"). El dashboard debe actualizarse instantáneamente al cambiar esto.
+
+Rango de Fechas.
+
+Selector de Competidores.
+
+Módulo 1: "Radar de Ofertas del Día": Una cuadrícula de "Tarjetas" (Cards). Cada tarjeta muestra la imagen del anuncio, el logo del competidor, el precio grande, y un botón que dice "Ver Evidencia Real" (que abra el link fuente).
+
+Módulo 2: "Comparativa de Precios y Planes": Un gráfico de barras interactivo que muestre el precio promedio por mega de cada competidor, filtrado por la ubicación seleccionada.
+
+Módulo 3: "Análisis FODA Dinámico": Basado en los filtros, mostrar dos columnas de texto: "Fortalezas Detectadas en Competencia" (ej. Netlife bajó precios en Chillogallo) y "Debilidades" (ej. Celerity tiene muchas quejas hoy en Twitter simulado).
+
+Módulo 4: "Mapeo de Presencia" (Opcional pero recomendado): Si es posible, usa un mapa simple de Quito (st.map) y pon puntos simulados donde se han detectado ofertas agresivas recientes.
+
+Requerimientos Técnicos y Entonro:
+
+Lenguaje: Python 3.10+.
+
+Librerías Clave: streamlit, pandas, plotly (para gráficos interactivos), faker (para generar datos aleatorios realistas).
+
+Estructura de Archivos:
+
+main.py: La aplicación de Streamlit (Frontend).
+
+data_engine.py: Lógica para generar y procesar los datos simulados.
+
+requirements.txt: Todas las dependencias.
+
+UI/UX: El dashboard debe verse profesional, limpio y ser fácil de usar para alguien de marketing, no para un programador.
+
+Instrucción Final para el Agente: Comienza construyendo el motor de datos simulados y luego desarrolla la interfaz de Streamlit paso a paso, asegurándote de que los filtros geográficos funcionen y actualicen todos los gráficos y tarjetas de ofertas.
