@@ -70,6 +70,23 @@ export interface DashboardSummary {
   selectedRegionName: string;
 }
 
+export interface StrategyEntry {
+  strategy: string;
+  totalCount: number;
+  topCompetitor: string;
+  topCompetitorCount: number;
+  topLocation: string;
+  topLocationCount: number;
+  byCompetitor: { competitor: string; count: number }[];
+  byLocation: { location: string; count: number }[];
+}
+
+export interface CompetitorInfo {
+  name: string;
+  color: string;
+  addedAt: string;
+}
+
 export const REGIONS: Region[] = [
   {
     id: "sur",
@@ -102,7 +119,50 @@ for (const region of REGIONS) {
   }
 }
 
-const COMPETITORS = ["Netlife", "PuntoNet", "Celerity", "CNT"];
+const DYNAMIC_COLORS = [
+  "hsl(270, 80%, 60%)",
+  "hsl(190, 80%, 50%)",
+  "hsl(320, 80%, 60%)",
+  "hsl(60, 80%, 50%)",
+  "hsl(0, 60%, 55%)",
+];
+
+const BASE_COMPETITORS: CompetitorInfo[] = [
+  { name: "Netlife", color: "hsl(11, 100%, 58%)", addedAt: "2024-01-01" },
+  { name: "PuntoNet", color: "hsl(220, 90%, 56%)", addedAt: "2024-01-01" },
+  { name: "Celerity", color: "hsl(36, 90%, 56%)", addedAt: "2024-01-01" },
+  { name: "CNT", color: "hsl(143, 90%, 56%)", addedAt: "2024-01-01" },
+];
+
+let dynamicCompetitors: CompetitorInfo[] = [...BASE_COMPETITORS];
+
+export function getCompetitorList(): CompetitorInfo[] {
+  return dynamicCompetitors;
+}
+
+export function addCompetitor(name: string): CompetitorInfo {
+  const trimmed = name.trim();
+  if (dynamicCompetitors.find((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+    throw new Error(`El competidor "${trimmed}" ya existe.`);
+  }
+  const colorIdx = (dynamicCompetitors.length - BASE_COMPETITORS.length) % DYNAMIC_COLORS.length;
+  const newComp: CompetitorInfo = {
+    name: trimmed,
+    color: DYNAMIC_COLORS[colorIdx],
+    addedAt: format(new Date(), "yyyy-MM-dd"),
+  };
+  dynamicCompetitors = [...dynamicCompetitors, newComp];
+  invalidateCache();
+  return newComp;
+}
+
+export function removeCompetitor(name: string): void {
+  if (BASE_COMPETITORS.find((c) => c.name === name)) {
+    throw new Error(`No se pueden eliminar los 4 competidores base.`);
+  }
+  dynamicCompetitors = dynamicCompetitors.filter((c) => c.name !== name);
+  invalidateCache();
+}
 
 const COMPETITOR_COLORS: Record<string, string> = {
   Netlife: "hsl(11, 100%, 58%)",
@@ -110,6 +170,12 @@ const COMPETITOR_COLORS: Record<string, string> = {
   Celerity: "hsl(36, 90%, 56%)",
   CNT: "hsl(143, 90%, 56%)",
 };
+
+function getCompetitorColor(name: string): string {
+  if (COMPETITOR_COLORS[name]) return COMPETITOR_COLORS[name];
+  const found = dynamicCompetitors.find((c) => c.name === name);
+  return found?.color ?? "hsl(var(--primary))";
+}
 
 const PLANS = [
   { name: "Plan 100 Mbps", speed: 100 },
@@ -167,12 +233,30 @@ const AD_CAPTIONS: Record<string, string[]> = {
   ],
 };
 
+const DEFAULT_CAPTIONS = [
+  "Nueva oferta disponible en Quito. ¡Contrata hoy!",
+  "Planes especiales para el Sur de Quito. ¡Precios increíbles!",
+  "Internet de alta velocidad en tu barrio. ¡Instalación gratis!",
+  "Descuento especial por tiempo limitado. ¡No te lo pierdas!",
+  "Fibra óptica llega a tu sector. ¡El mejor precio del mercado!",
+  "Oferta exclusiva en Quito. Bundle internet + TV disponible.",
+  "Conexión sin interrupciones. ¡Ahorra hasta 30% el primer año!",
+];
+
 const PRICE_RANGES: Record<string, Record<number, [number, number]>> = {
   Netlife: { 100: [24, 32], 200: [34, 42], 300: [44, 55], 500: [59, 72], 1000: [89, 110] },
   PuntoNet: { 100: [19, 27], 200: [28, 38], 300: [39, 49], 500: [52, 65], 1000: [79, 99] },
   Celerity: { 100: [21, 29], 200: [30, 40], 300: [41, 52], 500: [55, 68], 1000: [82, 105] },
   CNT: { 100: [15, 22], 200: [23, 31], 300: [32, 42], 500: [45, 58], 1000: [69, 89] },
 };
+
+const DEFAULT_PRICE_RANGE: Record<number, [number, number]> = {
+  100: [20, 30], 200: [31, 42], 300: [43, 54], 500: [55, 70], 1000: [80, 105],
+};
+
+function getPriceRange(competitor: string, speed: number): [number, number] {
+  return PRICE_RANGES[competitor]?.[speed] ?? DEFAULT_PRICE_RANGE[speed] ?? [20, 50];
+}
 
 function seededRandom(seed: number): number {
   const x = Math.sin(seed + 1) * 10000;
@@ -206,6 +290,7 @@ function classifyRelevance(
 }
 
 function generateOffers(daysBack = 30): CompetitorOffer[] {
+  const competitorNames = dynamicCompetitors.map((c) => c.name);
   const offers: CompetitorOffer[] = [];
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
@@ -220,25 +305,26 @@ function generateOffers(daysBack = 30): CompetitorOffer[] {
 
     for (let i = 0; i < offersPerDay; i++) {
       seed++;
-      const competitor = pickFromArray(COMPETITORS, seed);
+      const competitor = pickFromArray(competitorNames, seed);
       seed++;
       const plan = pickFromArray(PLANS, seed);
       seed++;
       const neighborhood = pickFromArray(ALL_NEIGHBORHOODS, seed);
       const regionName = REGION_BY_NEIGHBORHOOD[neighborhood] ?? "Todo Quito";
 
+      const captions = AD_CAPTIONS[competitor] ?? DEFAULT_CAPTIONS;
       seed++;
-      const caption = pickFromArray(AD_CAPTIONS[competitor], seed);
+      const caption = pickFromArray(captions, seed);
       seed++;
       const offerType = pickFromArray(OFFER_TYPES, seed);
 
-      const priceRange = PRICE_RANGES[competitor][plan.speed] ?? [20, 50];
+      const priceRange = getPriceRange(competitor, plan.speed);
       seed++;
       const price = randomInRange(priceRange[0], priceRange[1], seed);
 
       const { specificLocation, localRelevance } = classifyRelevance(caption, neighborhood);
       const isNew = dateStr === todayStr;
-      const offerId = `${competitor.toLowerCase()}-${dateStr}-${i}`;
+      const offerId = `${competitor.toLowerCase().replace(/\s+/g, "-")}-${dateStr}-${i}`;
 
       offers.push({
         id: offerId,
@@ -294,7 +380,7 @@ const MAP_POINTS_BASE: Array<{
 
 export function generateMapPoints(location?: string): MapPoint[] {
   return MAP_POINTS_BASE.map((p) => {
-    const priceRange = PRICE_RANGES[p.competitor][p.speed] ?? [20, 50];
+    const priceRange = getPriceRange(p.competitor, p.speed);
     const price = randomInRange(priceRange[0], priceRange[1], p.baseSeed * 13);
     const intensity: "high" | "medium" | "low" =
       ["Chillogallo", "Quitumbe"].includes(p.neighborhood)
@@ -324,12 +410,21 @@ function matchesLocationFilter(neighborhood: string, location?: string): boolean
 
 let cachedOffers: CompetitorOffer[] | null = null;
 let cacheDate: string | null = null;
+let cacheCompetitorCount: number = 0;
+
+function invalidateCache() {
+  cachedOffers = null;
+  cacheDate = null;
+}
 
 export function getAllOffers(): CompetitorOffer[] {
   const today = format(new Date(), "yyyy-MM-dd");
-  if (cachedOffers && cacheDate === today) return cachedOffers;
+  if (cachedOffers && cacheDate === today && cacheCompetitorCount === dynamicCompetitors.length) {
+    return cachedOffers;
+  }
   cachedOffers = generateOffers(30);
   cacheDate = today;
+  cacheCompetitorCount = dynamicCompetitors.length;
   return cachedOffers;
 }
 
@@ -426,8 +521,39 @@ export function computeMarketShare(offers: CompetitorOffer[]): MarketShare[] {
       competitor,
       offerCount,
       percentage: total > 0 ? Math.round((offerCount / total) * 1000) / 10 : 0,
-      color: COMPETITOR_COLORS[competitor] ?? "hsl(var(--primary))",
+      color: getCompetitorColor(competitor),
     }));
+}
+
+export function computeStrategyAnalysis(offers: CompetitorOffer[]): StrategyEntry[] {
+  const byStrategy: Record<string, CompetitorOffer[]> = {};
+  for (const o of offers) {
+    if (!byStrategy[o.offerType]) byStrategy[o.offerType] = [];
+    byStrategy[o.offerType].push(o);
+  }
+
+  return Object.entries(byStrategy)
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([strategy, items]) => {
+      const byComp: Record<string, number> = {};
+      const byLoc: Record<string, number> = {};
+      for (const item of items) {
+        byComp[item.competitor] = (byComp[item.competitor] ?? 0) + 1;
+        byLoc[item.specificLocation] = (byLoc[item.specificLocation] ?? 0) + 1;
+      }
+      const sortedComp = Object.entries(byComp).sort((a, b) => b[1] - a[1]);
+      const sortedLoc = Object.entries(byLoc).sort((a, b) => b[1] - a[1]);
+      return {
+        strategy,
+        totalCount: items.length,
+        topCompetitor: sortedComp[0]?.[0] ?? "-",
+        topCompetitorCount: sortedComp[0]?.[1] ?? 0,
+        topLocation: sortedLoc[0]?.[0] ?? "-",
+        topLocationCount: sortedLoc[0]?.[1] ?? 0,
+        byCompetitor: sortedComp.map(([competitor, count]) => ({ competitor, count })),
+        byLocation: sortedLoc.slice(0, 5).map(([location, count]) => ({ location, count })),
+      };
+    });
 }
 
 const SWOT_DATA: Record<string, { strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }> = {
@@ -517,7 +643,7 @@ export function getDashboardSummary(location?: string, neighborhoods?: string): 
   return {
     totalOffersDetected: filtered.length,
     highRelevanceOffers: highRelevance.length,
-    competitorsTracked: 4,
+    competitorsTracked: dynamicCompetitors.length,
     avgMarketPrice: Math.round(avgPrice * 100) / 100,
     lastRefresh: new Date().toISOString(),
     alertsCount: newOffers.filter((o) => o.localRelevance === "ALTA").length,
